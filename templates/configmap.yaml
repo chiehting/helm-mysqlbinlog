@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysqlbinlog
+data:
+  .my.cnf: |
+    [client]
+    host="{{ .Values.mysql.host }}"
+    port="{{ .Values.mysql.port }}"
+    user="{{ .Values.mysql.user }}"
+    password="{{ .Values.mysql.password }}"

@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "mysqlbinlog.fullname" . }}
+  labels:
+    {{- include "mysqlbinlog.labels" . | nindent 4 }}
+spec:
+  schedule: "{{ .Values.schedule }}"
+  concurrencyPolicy: "Forbid"
+  successfulJobsHistoryLimit: {{ .Values.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.failedJobsHistoryLimit }}
+  jobTemplate:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "mysqlbinlog.selectorLabels" . | nindent 8 }}
+    spec:
+      backoffLimit: {{ .Values.backoffLimit }}
+      template:
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          restartPolicy: Never
+          serviceAccountName: {{ include "mysqlbinlog.serviceAccountName" . }}
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          containers:
+          - name: {{ .Chart.Name }}
+            securityContext:
+              {{- toYaml .Values.securityContext | nindent 16 }}
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command:
+              {{- toYaml .Values.command | nindent 16 }}
+            resources:
+              {{- toYaml .Values.resources | nindent 16 }}
+            volumeMounts:
+              {{- toYaml .Values.volumeMounts | nindent 16 }}
+          volumes:
+            {{- toYaml .Values.volumes | nindent 12 }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

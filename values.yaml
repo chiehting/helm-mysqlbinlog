@@ -1,0 +1,98 @@
+# Default values for mysqlbinlog.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+successfulJobsHistoryLimit: 1
+failedJobsHistoryLimit: 0
+backoffLimit: 0
+
+image:
+  repository: mysql
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "8.0.35-debian"
+
+# imagePullSecrets:
+#   - name: container-registry
+
+nameOverride: "mysqlbinlog"
+fullnameOverride: "mysqlbinlog"
+
+schedule: "*/10 * * * *"
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   add:
+  #   - SYS_ADMIN
+  # privileged: true
+
+mysql:
+    host: "10.1.7.8"
+    port: "3306"
+    user: "root"
+    password: "password"
+
+command:
+  - /bin/sh
+  - -c
+  - |
+    Binlog_dir=/mysqlbackup/binlog/
+    cd $Binlog_dir
+    Backup_dir=$Binlog_dir/$(date "+%Y-%m-%d")
+    mkdir -p $Backup_dir
+    mysql_binlog_filename=$(mysql -e "show master logs"|grep "mysql-bin"|awk '{print $1}')
+    if [ ! -n "$mysql_binlog_filename" ]; then
+      exit 1
+    fi
+    for file in $mysql_binlog_filename
+    do
+        `mysqlbinlog --read-from-remote-server $file --result-file=$Backup_dir/ --raw`
+    done
+    `find $Binlog_dir -mtime +14 -name "*" -exec rm -rf {} \;`
+    `find $Binlog_dir -type d -empty -exec rmdir {} \;`
+    echo "bucket $mysql_binlog_filename"
+
+volumeMounts:
+  - name: mysqlbinlog
+    mountPath: /root/.my.cnf
+    subPath: .my.cnf
+  - name: mysqlbackup
+    mountPath: "/mysqlbackup"
+
+volumes:
+  - name: mysqlbinlog
+    configMap:
+      name: mysqlbinlog
+      items:
+        - key: ".my.cnf"
+          path: .my.cnf
+  - name: mysqlbackup
+    persistentVolumeClaim:
+      claimName: mysqlbackup
+
+storage:
+  # className: "gp2"
+  name: mysqlbackup
+  dataSize: "5Gi"
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

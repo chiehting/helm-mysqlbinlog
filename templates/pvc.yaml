@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.storage.name }}
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  {{- with .Values.storage.className }}
+  storageClassName: {{ . }}
+  {{- end }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.storage.dataSize }}
